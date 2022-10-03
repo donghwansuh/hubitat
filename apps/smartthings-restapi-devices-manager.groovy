@@ -93,8 +93,7 @@ def devicesPage() {
         } catch (e) {
             log.error "${e}"
         }
-        section
-        {
+        section {
             input name: "devicesToInstall", type: "enum", title: "Select new devices to install to this Hubitat hub.", options: state.fetchedDevices.keySet(), required: false, multiple: true
         }
     }
@@ -108,7 +107,7 @@ def devicesRemovalPage() {
             String dnid = entry.getDeviceNetworkId()
             childrenMap.put("${entry.label} (${dnid})", dnid)
         }
-        section("<b>Settings</b>") {
+        section {
             input name: "devicesToRemove", type: "enum", title: "Select devices to remove from this Hubitat Hub.", options: childrenMap.keySet(), required: false, multiple: true
         }
     }
@@ -116,11 +115,10 @@ def devicesRemovalPage() {
 
 def settingsPage() {
     dynamicPage(name: "settingsPage", title: "", install: false, uninstall: false) {
-        section("<b>Settings</b>") {
+        section {
             label title: "Change the name of this app.", required: false
             input name: "alsoDeleteChildren", type: "bool", title: "Deleted child devices when this app is removed", defaultValue: false
             input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: false
-            href page: "mainPage", title: "Go back to the Main page"
         }
     }
 }
@@ -155,8 +153,9 @@ def installed() {
     app.clearSetting("devicesToInstall")
     
     devicesToRemove.each { entry ->
-        log.debug "${state.childList.getAt(entry)}"
+        if (logEnable) log.debug "${state.childList.getAt(entry)}"
         deleteChildDevice(state.childList.getAt(entry))
+        log.info "Deleted : ${entry}"
     }
     app.clearSetting("devicesToRemove")
 
@@ -171,12 +170,9 @@ def updated() {
 def uninstalled()
 {
     if (alsoDeleteChildren){
-        deleteChildrenD(getChildDevices())
-    }
-}
-
-def deleteChildrenD(_children){
-    _children.each { entry->
+        def children = getChildDevices()
+        children.each { entry->
         deleteChildDevice(entry.getDeviceNetworkId())
+        }
     }
 }
