@@ -142,7 +142,7 @@ def installed() {
             try {
                 def childDevice = addChildDevice("donghwansuh", deviceDriverName, deviceNetworkID, [name: deviceDriverName, label: stDeviceLabel, isComponent: false])
                 childDevice.updateSetting("deviceid", stDeviceID)
-                childDevice.updateSetting("token", personalAccessToken)
+                //childDevice.updateSetting("token", personalAccessToken)
                 log.info "Installed : ${entry} (${stDeviceID})"
             } catch (e) {
                 log.error "${e}"
@@ -158,6 +158,11 @@ def installed() {
         log.info "Deleted : ${entry}"
     }
     app.clearSetting("devicesToRemove")
+
+    def children = getChildDevices()
+        children.each { entry->
+        entry.updateSetting("token", personalAccessToken)
+    }
 
     state.childList.clear()
     state.fetchedDevices.clear()
