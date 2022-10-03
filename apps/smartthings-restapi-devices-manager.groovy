@@ -51,10 +51,6 @@ def mainPage() {
             input name: "personalAccessToken", type: "string", title: "Smartthings Personal Access Token", required: true
             paragraph "<a href='https://account.smartthings.com/tokens' target='_blank'>Create or manage tokens</a>"
         }
-        section("<b>IMPORTANT</b>") {
-            paragraph "The label of each device registered on Smartthings should be unique."
-            paragraph "스마트싱스에 등록된 각 디바이스의 이름이 고유해야 합니다."
-        }
         section("<b>Settings</b>") {
             href page: "devicesPage", title: "<b>Add new devices</b>", description: ""
             href page: "devicesRemovalPage", title: "<b>Remove installed devices</b>", description: ""
