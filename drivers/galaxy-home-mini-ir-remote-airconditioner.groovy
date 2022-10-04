@@ -1,5 +1,5 @@
 /*
- * Galaxy Home Mini IR Air Conditioner Hubitat driver (Using Smartthings REST API)
+ * Galaxy Home Mini IR Remote Air Conditioner Hubitat driver (Using Smartthings REST API)
  *
  * Copyright 2022 Donghwan Suh
  * 
@@ -19,7 +19,7 @@
  *
  */
 metadata {
-    definition(name: "Galaxy Home Mini IR Air Conditioner", namespace: "donghwansuh", author: "Donghwan Suh") {
+    definition(name: "Galaxy Home Mini IR Remote Air Conditioner", namespace: "donghwansuh", author: "Donghwan Suh") {
         capability "Switch"
         capability "ThermostatCoolingSetpoint"
 
