@@ -14,9 +14,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
+ * 2022.10.08 0.2 Fixed logging.
+                  Refactored code.
+                  Added supported of device types:
+                  Galaxy Home Mini IR Remote Fan, Galaxy Home Mini IR Remote Air Purifier,
+                  Galaxy Home Mini IR Remote Wall Switch, Galaxy Home Mini IR Remote Robot Cleaner
  * 2022.10.03 0.1 Initial version
- *                Supports Galaxy Home Mini, Galaxy Home Mini IR Air Conditioner.
+ *                Supports Galaxy Home Mini, Galaxy Home Mini IR Remote Air Conditioner.
  *
  */
 definition(
@@ -36,6 +41,14 @@ preferences{
     page(name: "devicesRemovalPage")
     page(name: "settingsPage")
 }
+
+import groovy.transform.Field
+@Field static final Map ST_DEV_PID =["IM-SPEAKER-AI-0001" : "Galaxy Home Mini|donghwansuh",
+                                    "SmartThings-smartthings-IR_Remote_Air_Conditioner":"Galaxy Home Mini IR Remote Air Conditioner|donghwansuh",
+                                    "SmartThings-smartthings-IR_Remote_Fan":"Galaxy Home Mini IR Remote Fan|donghwansuh",
+                                    "SmartThings-smartthings-IR_Remote_Air_Purifier":"Galaxy Home Mini IR Remote Air Purifier|donghwansuh",
+                                    "SmartThings-smartthings-IR_Remote_Wall_Switch":"Galaxy Home Mini IR Remote Wall Switch|donghwansuh",
+                                    "SmartThings-smartthings-IR_Remote_Robot_Cleaner":"Galaxy Home Mini IR Remote Robot Cleaner|donghwansuh"]
 
 def mainPage() {
     state.childList = [:]
@@ -66,7 +79,7 @@ def devicesPage() {
         uri: "https://api.smartthings.com/v1/devices/",
         headers: ['Authorization' : "Bearer " + personalAccessToken],
         ]
-
+        def sortedList = []
         try {
             httpGet(httpParams) { resp ->
                 if (logEnable){
@@ -78,11 +91,17 @@ def devicesPage() {
                 }
 
                 resp.data.items.each { entry ->
+                    String hubDriverMetadata = ST_DEV_PID.getAt(entry.presentationId)
+                    if (!hubDriverMetadata){
+                        if (logEnable) log.warn "Not yet implemented - presentationID : ${entry.presentationId}"
+                        return
+                    }
                     String mapKey = "${entry.label} (${entry.deviceId})"
                     String mapKeyLocal = "${entry.label} (st_${entry.deviceId})"
                     if (!state.childList.containsKey(mapKeyLocal)){
                         if (logEnable) log.debug "${mapKey} ${mapKeyLocal}"
                         state.fetchedDevices.put("${mapKey}", entry)
+                        sortedList.add(mapKey)
                     }
                 }                
             }
@@ -90,7 +109,7 @@ def devicesPage() {
             log.error "${e}"
         }
         section {
-            input name: "devicesToInstall", type: "enum", title: "Select new devices to install to this Hubitat hub.", options: state.fetchedDevices.keySet(), required: false, multiple: true
+            input name: "devicesToInstall", type: "enum", title: "Select new devices to install to this Hubitat hub.", options: sortedList.sort(), required: false, multiple: true
         }
     }
 }
@@ -99,12 +118,15 @@ def devicesRemovalPage() {
     dynamicPage(name: "devicesRemovalPage", title: "", install: true, uninstall: false) {
         def children = getChildDevices()
         Map childrenMap = [:]
+        def sortedList = []
         children.each { entry ->
             String dnid = entry.getDeviceNetworkId()
             childrenMap.put("${entry.label} (${dnid})", dnid)
+            sortedList.add("${entry.label} (${dnid})")
         }
+        
         section {
-            input name: "devicesToRemove", type: "enum", title: "Select devices to remove from this Hubitat Hub.", options: childrenMap.keySet(), required: false, multiple: true
+            input name: "devicesToRemove", type: "enum", title: "Select devices to remove from this Hubitat Hub.", options: sortedList.sort(), required: false, multiple: true
         }
     }
 }
@@ -113,7 +135,7 @@ def settingsPage() {
     dynamicPage(name: "settingsPage", title: "", install: false, uninstall: false) {
         section {
             label title: "Change the name of this app.", required: false
-            input name: "alsoDeleteChildren", type: "bool", title: "Deleted child devices when this app is removed", defaultValue: false
+            input name: "alsoDeleteChildren", type: "bool", title: "Remove child devices when this app is removed", defaultValue: false
             input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: false
         }
     }
@@ -121,37 +143,35 @@ def settingsPage() {
 
 def installed() {
     devicesToInstall.each { entry ->
-        if (logEnable) log.debug "${state.fetchedDevices}.${entry}"
+        if (logEnable) log.debug "${entry} : " + state.fetchedDevices."${entry}"
+
         String stDeviceLabel = state.fetchedDevices."${entry}".label
         String stDeviceID = state.fetchedDevices."${entry}".deviceId
+        String stDevicePresentationId = state.fetchedDevices."${entry}".presentationId
         String deviceNetworkID = "st_" + stDeviceID
+        if (logEnable) log.debug stDeviceID + " " + stDevicePresentationId
         def child = getChildDevice(deviceNetworkID)
         if (logEnable) log.debug "Retrieved Child : ${child}"
+
         if (child == null){
-            String deviceDriverName
-            if (state.fetchedDevices."${entry}".type == "OCF"){
-                deviceDriverName = "Galaxy Home Mini"
-            }
-            else if (state.fetchedDevices."${entry}".type == "IR_OCF"){
-                deviceDriverName = "Galaxy Home Mini IR Air Conditioner"
-            }
+            String hubDriverMetadata = ST_DEV_PID.getAt(stDevicePresentationId)
+            def (hubDeviceDriverName, hubNamespace) = hubDriverMetadata.tokenize('|')
             try {
-                def childDevice = addChildDevice("donghwansuh", deviceDriverName, deviceNetworkID, [name: deviceDriverName, label: stDeviceLabel, isComponent: false])
+                def childDevice = addChildDevice(hubNamespace, hubDeviceDriverName, deviceNetworkID, [name: deviceDriverName, label: stDeviceLabel, isComponent: false])
                 childDevice.updateSetting("deviceid", stDeviceID)
-                //childDevice.updateSetting("token", personalAccessToken)
-                log.info "Installed : ${entry} (${stDeviceID})"
+                log.info "Installed : ${entry}"
             } catch (e) {
                 log.error "${e}"
             }
         }
-        else log.info "Device already exists : ${entry} (${stDeviceID})"  
+        else log.warn "Device already exists : ${entry}"  
     }
     app.clearSetting("devicesToInstall")
     
     devicesToRemove.each { entry ->
         if (logEnable) log.debug "${state.childList.getAt(entry)}"
         deleteChildDevice(state.childList.getAt(entry))
-        log.info "Deleted : ${entry}"
+        log.info "Removed : ${entry}"
     }
     app.clearSetting("devicesToRemove")
 
