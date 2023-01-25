@@ -283,7 +283,7 @@ def setReporting (attribute=null, value=null){
             case "Energy":
                 if (value == "Enabled"){
                     if (logEnable) log.debug("ENABLE Energy Reporting")
-                    device.updateSetting("reportEnergy", True)
+                    device.updateSetting("reportEnergy", true)
                     zigbee.configureReporting(0x0702, 0x0000, DataType.UINT48,
                         reportIntervalEnergyMin_, reportIntervalEnergyMax_, reportDifferenceEnergy_)
                 }
